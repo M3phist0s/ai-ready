@@ -1,0 +1,19 @@
+name: AI Ready Self-Check
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ai-ready:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: ai-ready
+        with:
+          mode: score
+      - name: Show Score
+        run: |
+          echo "Score: ${{ steps.ai-ready.outputs.score }}"
+          echo "Grade: ${{ steps.ai-ready.outputs.grade }}"
