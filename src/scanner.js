@@ -138,12 +138,50 @@ function scanRepo(repoPath) {
     }
   }
 
-  // Check for README
+  // Check for README and extract description
   const hasReadme = files.some(f => f.name.toLowerCase() === 'readme.md' || f.name.toLowerCase() === 'readme');
   let readmeLength = 0;
+  let readmeDescription = '';
   if (hasReadme) {
     const readmeFile = files.find(f => f.name.toLowerCase() === 'readme.md' || f.name.toLowerCase() === 'readme');
-    try { readmeLength = fs.readFileSync(readmeFile.path, 'utf-8').length; } catch { }
+    try {
+      const content = fs.readFileSync(readmeFile.path, 'utf-8');
+      readmeLength = content.length;
+      // Extract first meaningful paragraph (skip badges, headings, blank lines)
+      const lines = content.split('\n');
+      let desc = '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (trimmed.startsWith('#')) continue;
+        if (trimmed.startsWith('[![') || trimmed.startsWith('![')) continue;
+        if (trimmed.startsWith('<!--')) continue;
+        if (trimmed.startsWith('---')) continue;
+        // Found first real paragraph
+        desc = trimmed;
+        break;
+      }
+      readmeDescription = desc.slice(0, 300);
+    } catch { }
+  }
+
+  // Extract package metadata (description, name, scripts)
+  let packageDescription = '';
+  let packageName = '';
+  let packageScripts = {};
+  for (const manifestName of ['package.json', 'Cargo.toml', 'pyproject.toml']) {
+    const manifestPath = path.join(repoPath, manifestName);
+    if (fs.existsSync(manifestPath)) {
+      try {
+        if (manifestName === 'package.json') {
+          const pkg = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+          packageDescription = pkg.description || '';
+          packageName = pkg.name || '';
+          packageScripts = pkg.scripts || {};
+        }
+      } catch { }
+      break;
+    }
   }
 
   // Check for package manifest
@@ -208,6 +246,10 @@ function scanRepo(repoPath) {
     frameworks,
     hasReadme,
     readmeLength,
+    readmeDescription,
+    packageDescription,
+    packageName,
+    packageScripts,
     hasManifest,
     hasTests,
     testFileCount,
